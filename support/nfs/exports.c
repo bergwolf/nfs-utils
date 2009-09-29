@@ -108,6 +108,7 @@ static void init_exportent (struct exportent *ee, int fromkernel)
 	ee->e_nsqgids = 0;
 	ee->e_uuid = NULL;
 	ee->e_ttl = DEFAULT_TTL;
+	ee->e_pnfs = 0;
 }
 
 struct exportent *
@@ -305,6 +306,8 @@ putexportent(struct exportent *ep)
 	}
 	fprintf(fp, "anonuid=%d,anongid=%d", ep->e_anonuid, ep->e_anongid);
 	secinfo_show(fp, ep);
+	if (ep->e_pnfs)
+		fprintf(fp, ",pnfs");
 	fprintf(fp, ")\n");
 }
 
@@ -565,6 +568,10 @@ parseopts(char *cp, struct exportent *ep, int warn, int *had_subtree_opt_ptr)
 			clearflags(NFSEXP_NOACL, active, ep);
 		else if (strcmp(opt, "no_acl") == 0)
 			setflags(NFSEXP_NOACL, active, ep);
+		else if (strcmp(opt, "pnfs") == 0)
+			ep->e_pnfs = 1;
+		else if (strcmp(opt, "no_pnfs") == 0)
+			ep->e_pnfs = 0;
 		else if (strncmp(opt, "anonuid=", 8) == 0) {
 			char *oe;
 			ep->e_anonuid = strtol(opt+8, &oe, 10);

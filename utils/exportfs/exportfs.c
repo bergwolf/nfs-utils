@@ -667,6 +667,8 @@ dump(int verbose)
 #endif
 			}
 			secinfo_show(stdout, ep);
+			if (ep->e_pnfs)
+				c = dumpopt(c, ",pnfs");
 			printf("%c\n", (c != '(')? ')' : ' ');
 		}
 	}

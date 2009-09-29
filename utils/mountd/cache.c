@@ -707,6 +707,8 @@ static int dump_to_cache(FILE *f, char *domain, char *path, struct exportent *ex
 		qword_printint(f, exp->e_anonuid);
 		qword_printint(f, exp->e_anongid);
 		qword_printint(f, exp->e_fsid);
+		if (exp->e_pnfs == 1)
+			qword_print(f, "pnfs");
 		write_fsloc(f, exp);
 		write_secinfo(f, exp, flag_mask);
  		if (exp->e_uuid == NULL || different_fs) {
