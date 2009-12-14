@@ -1,7 +1,13 @@
 /*
  *  spnfsd.c
- *
  *  Userland daemon for spNFS.
+ *  Based heavily on idmapd.c
+ *
+ */
+/*
+ *  idmapd.c
+ *
+ *  Userland daemon for idmap.
  *
  *  Copyright (c) 2002 The Regents of the University of Michigan.
  *  All rights reserved.
@@ -369,17 +375,11 @@ spnfscb(int fd, short which, void *data)
 	if (im.im_status == SPNFS_STATUS_FAIL)
 		im.im_status = SPNFS_STATUS_SUCCESS;
 
-printf("before atomicio write\n");
-printf("writing %d bytes\n", sizeof(im));
 	if ((rval=atomicio(write, scp->sc_fd, &im, sizeof(im))) != sizeof(im)) {
-printf("spnfscb: incomplete write %d of %d bytes\n", rval, sizeof(im));
-printf("atomicio write error\n");
 		spnfsd_warn("spnfscb: write(%s)", scp->sc_path);
 	}
 
-printf("after atomicio write\n");
 out:
-printf("spnfscb out\n");
 	event_add(&scp->sc_event, NULL);
 }
 
