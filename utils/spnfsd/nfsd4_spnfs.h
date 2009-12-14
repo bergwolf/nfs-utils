@@ -60,7 +60,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define	SPNFS_MAX_DEVICES		1
 #define	SPNFS_MAX_DATA_SERVERS		16
-#define SPNFS_MAX_IO			2048
+#define SPNFS_MAX_IO			512
 
 /* layout */
 struct spnfs_msg_layoutget_args {
