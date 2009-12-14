@@ -51,16 +51,15 @@ spnfsd_layoutget(struct spnfs_msg *im)
 
 	im->im_status = SPNFS_STATUS_SUCCESS;
 	im->im_res.layoutget_res.status = 0;
+	im->im_res.layoutget_res.dev_id = 1; /* XXX */
 	im->im_res.layoutget_res.stripe_size = stripesize;
 	if (densestriping)
-		im->im_res.layoutget_res.stripe_type = 2; /* DMXXX enum */
+		im->im_res.layoutget_res.stripe_type = 1; /* DMXXX enum */
 	else
-		im->im_res.layoutget_res.stripe_type = 1; /* DMXXX ^^^^ */
-	im->im_res.layoutget_res.layout_count = num_ds;
+		im->im_res.layoutget_res.stripe_type = 0; /* DMXXX ^^^^ */
+	im->im_res.layoutget_res.stripe_count = num_ds;
 
 	for (ds = 0 ; ds < num_ds ; ds++) {
-		im->im_res.layoutget_res.flist[ds].dev_id = 1; /* XXX */
-		im->im_res.layoutget_res.flist[ds].ds_index = ds;
 		memset(im->im_res.layoutget_res.flist[ds].fh_val, 0, 128); /*DMXXX*/
 		sprintf(fullpath, "%s/%s/%ld",
 			dsmountdir, dataservers[ds].ds_ip,
@@ -76,10 +75,10 @@ spnfsd_layoutget(struct spnfs_msg *im)
 
 		/*
 		 * MSXXX another hack...fix the hardcoding.
-		 * The fh's fsid_type is incremented by 5 to get
+		 * The fh's fsid_type is incremented by 8 to get
 		 * around stateid checking.
 		 */
-		im->im_res.layoutget_res.flist[ds].fh_val[2] += 5;
+		im->im_res.layoutget_res.flist[ds].fh_val[2] += 8;
 	}
 
 	return 0;

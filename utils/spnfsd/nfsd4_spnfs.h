@@ -58,7 +58,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define	SPNFS_MAX_DEVICES		1
 #define	SPNFS_MAX_DATA_SERVERS		2
-#define	SPNFS_MAX_LAYOUT		8
 
 /* layout */
 struct spnfs_msg_layoutget_args {
@@ -66,18 +65,17 @@ struct spnfs_msg_layoutget_args {
 };
 
 struct spnfs_filelayout_list {
-	u_int32_t	dev_id;
-	u_int32_t       ds_index;
 	u_int32_t       fh_len;
 	unsigned char   fh_val[128]; /* DMXXX fix this const */
 };
 
 struct spnfs_msg_layoutget_res {
 	int status;
+	u_int32_t dev_id;
 	u_int64_t stripe_size;
 	u_int32_t stripe_type;
-	u_int32_t layout_count;
-	struct spnfs_filelayout_list flist[SPNFS_MAX_LAYOUT];
+	u_int32_t stripe_count;
+	struct spnfs_filelayout_list flist[SPNFS_MAX_DATA_SERVERS];
 };
 
 /* layoutcommit */
@@ -262,7 +260,7 @@ struct spnfs {
 };
 
 int spnfs_layout_type(void);
-int spnfs_layoutget(struct inode *, void *);
+int spnfs_layoutget(struct inode *, struct pnfs_layoutget_arg *);
 int spnfs_layoutcommit(void);
 int spnfs_layoutreturn(struct inode *, void *);
 int spnfs_getdeviceiter(struct super_block *, struct pnfs_deviter_arg *);
