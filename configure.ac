@@ -62,6 +62,7 @@ AC_ARG_ENABLE(nfsv4,
 	enable_nfsv4=yes)
 	if test "$enable_nfsv4" = yes; then
 		IDMAPD=idmapd
+		SPNFSD=spnfsd
 	else
 		enable_nfsv4=
 		IDMAPD=
@@ -461,6 +462,7 @@ AC_CONFIG_FILES([
 	utils/exportfs/Makefile
 	utils/gssd/Makefile
 	utils/idmapd/Makefile
+	utils/spnfsd/Makefile
 	utils/mount/Makefile
 	utils/mountd/Makefile
 	utils/nfsd/Makefile
