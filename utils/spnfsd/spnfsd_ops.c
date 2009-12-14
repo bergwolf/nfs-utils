@@ -397,21 +397,31 @@ spnfsd_write(struct spnfs_msg *im)
 int
 spnfsd_getfh(char *path, unsigned char *fh_val, unsigned int *fh_len)
 {
-	int fd, err;
-	struct nfsctl_arg arg;
+	int fd, proc_fd;
 	unsigned char res[130]; /* XXX align this to proper structure */
-	extern int nfsservctl();
+	extern void spnfsd_errx(int, const char *, ...);
 
+	/*
+	 * hack to make sure there's an active data structure for this
+	 * inode in the nfs client kernel space
+	 */
 	if ((fd = open(path, O_RDONLY)) < 0) {
 		perror(path);
 		return -1;
 	}
 
-	arg.ca_fd2fh.fd = fd;
-	if ((err = nfsservctl(NFSCTL_FD2FH, &arg, res)) < 0) {
-		close(fd);
-		return -1;
+	/* fd to fh conversion */
+	proc_fd = open("/proc/fs/spnfs/getfh", O_RDWR);
+	if (proc_fd < 0) {
+		spnfsd_errx(1, "open getfh failed (%s)", strerror(errno));
 	}
+	if (write(proc_fd, &fd, sizeof(int)) < 0) {
+		spnfsd_errx(1, "write getfh failed (%s)", strerror(errno));
+	}
+	if (read(proc_fd, res, 130) <= 0) {
+		spnfsd_errx(1, "read getfh failed (%s)", strerror(errno));
+	}
+	close(proc_fd);
 
 	/* XXX use proper structure */
 	*fh_len = (short)res[0];

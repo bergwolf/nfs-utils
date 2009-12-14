@@ -202,16 +202,15 @@ main(int argc, char **argv)
 	int opt, fg = 0;
 	char *progname;
 	struct stat sb;
-	int err;
-	extern int nfsservctl();
+	int rc, fd, cmd = 1;
 
-	if ((err = nfsservctl(222, NULL, NULL)) != 0)
-		if (errno != EEXIST) {
-	                spnfsd_errx(1, "kernel init failed (%s)",
-                            strerror(errno));
-
-			perror("spnfsd: nfsservctl");
-		}
+	fd = open("/proc/fs/spnfs/ctl", O_WRONLY);
+	if (fd < 0)
+		spnfsd_errx(1, "kernel init failed (%s)", strerror(errno));
+	rc = write(fd, &cmd, sizeof(int));
+	if (rc < 0 && errno != EEXIST)
+		spnfsd_errx(1, "kernel init failed (%s)", strerror(errno));
+	close(fd);
 
 	conf_path = _PATH_SPNFSDCONF;
 	strlcpy(pipefsdir, PIPEFS_DIR, sizeof(pipefsdir));
