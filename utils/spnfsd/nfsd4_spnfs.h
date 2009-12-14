@@ -285,6 +285,14 @@ struct spnfs_msg {
 	union spnfs_msg_res	im_res;
 };
 
+/* spnfs configuration info */
+struct spnfs_config {
+	unsigned char		dense_striping;
+	int			stripe_size;
+	int			num_ds;
+	char			ds_dir[SPNFS_MAX_DATA_SERVERS][80];  /* XXX */
+};
+
 #ifdef __KERNEL__
 
 /* pipe mgmt structure.  messages flow through here */

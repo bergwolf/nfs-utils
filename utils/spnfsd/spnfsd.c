@@ -120,6 +120,7 @@ int num_dev = 1;  /* XXX no multiple device support yet */
 int num_ds;
 struct dserver dataservers[SPNFS_MAX_DATA_SERVERS];
 char dsmountdir[PATH_MAX];
+struct spnfs_config spnfs_config;
 
 static int cache_entry_expiration = 0;
 static char pipefsdir[PATH_MAX];
@@ -203,6 +204,7 @@ main(int argc, char **argv)
 	char *progname;
 	struct stat sb;
 	int rc, fd, cmd = 1;
+	int i;
 
 	fd = open("/proc/fs/spnfs/ctl", O_WRONLY);
 	if (fd < 0)
@@ -268,6 +270,22 @@ main(int argc, char **argv)
 	strncat(pipefsdir, "/nfs", sizeof(pipefsdir));
 	strncat(sc.sc_path, "/nfs/spnfs", sizeof(sc.sc_path));
 	memcpy(pipefspath, sc.sc_path, sizeof(pipefspath));
+
+	spnfs_config.stripe_size = stripesize;
+	spnfs_config.dense_striping = densestriping;
+	spnfs_config.num_ds = num_ds;
+
+	for (i = 0; i < num_ds; i++)
+		sprintf(spnfs_config.ds_dir[i], "%s/%s",
+			dsmountdir, dataservers[i].ds_ip);
+
+	fd = open("/proc/fs/spnfs/config", O_WRONLY);
+	if (fd < 0)
+		spnfsd_errx(1, "error creating config (%s)", strerror(errno));
+	rc = write(fd, &spnfs_config, sizeof(struct spnfs_config));
+	if (rc < 0 && errno != EEXIST)
+		spnfsd_errx(1, "error writing config (%s)", strerror(errno));
+	close(fd);
 
 	signal(SIGHUP, send_invalid_msg);
 

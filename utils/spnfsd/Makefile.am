@@ -1,7 +1,7 @@
 ## Process this file with automake to produce Makefile.in
 
-man5_MANS	= spnfsd.conf.man
-man8_MANS	= spnfsd.man
+man5_MANS	=
+man8_MANS	=
 
 RPCPREFIX	=
 KPREFIX		= @kprefix@
