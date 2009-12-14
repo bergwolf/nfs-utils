@@ -42,7 +42,7 @@ struct dserver {
         char    *ds_ip;
         int     ds_port;
         char    *ds_path;
-	int	ds_devid;
+	int	ds_id;
 };
 
 /* DMXXX future struct for whole config */
@@ -57,7 +57,7 @@ struct spnfsd_config {
 int spnfsd_layoutget(struct spnfs_msg *);
 int spnfsd_layoutcommit(struct spnfs_msg *);
 int spnfsd_layoutreturn(struct spnfs_msg *);
-int spnfsd_getdevicelist(struct spnfs_msg *);
+int spnfsd_getdeviceiter(struct spnfs_msg *);
 int spnfsd_getdeviceinfo(struct spnfs_msg *);
 int spnfsd_setattr(struct spnfs_msg *);
 int spnfsd_open(struct spnfs_msg *);

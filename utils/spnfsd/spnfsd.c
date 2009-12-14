@@ -114,6 +114,7 @@ static void dump_config();
 int verbose = 0;
 int stripesize = DEFAULT_STRIPE_SIZE;
 int densestriping = 0;
+int num_dev = 1;  /* XXX no multiple device support yet */
 int num_ds;
 struct dserver dataservers[SPNFS_MAX_DATA_SERVERS];
 char dsmountdir[PATH_MAX];
@@ -315,8 +316,8 @@ spnfs_msg_handler(struct spnfs_client *scp, struct spnfs_msg *im)
 	case SPNFS_TYPE_LAYOUTRETURN:
 		err = spnfsd_layoutreturn(im);
 		break;
-	case SPNFS_TYPE_GETDEVICELIST:
-		err = spnfsd_getdevicelist(im);
+	case SPNFS_TYPE_GETDEVICEITER:
+		err = spnfsd_getdeviceiter(im);
 		break;
 	case SPNFS_TYPE_GETDEVICEINFO:
 		err = spnfsd_getdeviceinfo(im);
@@ -459,7 +460,7 @@ read_config()
 	char *xpipefsdir = NULL;
 	char *xdsmountdir = NULL;
 	int ds;
-	char ipstr[20], portstr[20], rootstr[20], devidstr[20];
+	char ipstr[20], portstr[20], rootstr[20], dsidstr[20];
 
 	verbose = conf_get_num("General", "Verbosity", 0);
 	stripesize = conf_get_num("General", "Stripe-size",DEFAULT_STRIPE_SIZE);
@@ -478,7 +479,7 @@ read_config()
 		sprintf(ipstr, "DS%d_IP", ds);
 		sprintf(portstr, "DS%d_PORT", ds);
 		sprintf(rootstr, "DS%d_ROOT", ds);
-		sprintf(devidstr, "DS%d_DEVID", ds);
+		sprintf(dsidstr, "DS%d_ID", ds);
 		CONF_SAVE(dataservers[ds-1].ds_ip,
 			conf_get_str("DataServers", ipstr));
 		if (dataservers[ds-1].ds_ip == NULL)
@@ -489,10 +490,10 @@ read_config()
 			conf_get_str("DataServers", rootstr));
 		if (dataservers[ds-1].ds_ip == NULL)
 			spnfsd_err(1, "Missing IP for DS%d\n", ds);
-		dataservers[ds-1].ds_devid =
-			conf_get_num("DataServers", devidstr, -1);
-		if (dataservers[ds-1].ds_devid < 0)
-			spnfsd_err(1, "Missing or invalid DEVID for DS%d\n", ds);
+		dataservers[ds-1].ds_id =
+			conf_get_num("DataServers", dsidstr, -1);
+		if (dataservers[ds-1].ds_id < 0)
+			spnfsd_err(1, "Missing or invalid ID for DS%d\n", ds);
 	}
 
 	return 0;
@@ -512,7 +513,7 @@ dump_config()
 		printf("DS%d IP: %s\n", ds+1, dataservers[ds].ds_ip);
 		printf("DS%d PORT: %d\n", ds+1, dataservers[ds].ds_port);
 		printf("DS%d ROOT: %s\n", ds+1, dataservers[ds].ds_path);
-		printf("DS%d DEVID: %d\n", ds+1, dataservers[ds].ds_devid);
+		printf("DS%d DSID: %d\n", ds+1, dataservers[ds].ds_id);
 	}
 }
 

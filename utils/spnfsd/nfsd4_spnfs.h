@@ -4,6 +4,7 @@
  * spNFS - simple pNFS implementation with userspace daemon
  *
  */
+
 /******************************************************************************
 
 (c) 2007 Network Appliance, Inc.  All Rights Reserved.
@@ -31,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #ifdef __KERNEL__
+#include "exportfs.h"
 #include "sunrpc/svc.h"
 #include "nfsd/nfsfh.h"
 #else
@@ -45,17 +47,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define SPNFS_TYPE_LAYOUTGET		0x01
 #define SPNFS_TYPE_LAYOUTCOMMIT		0x02
 #define SPNFS_TYPE_LAYOUTRETURN		0x03
-#define SPNFS_TYPE_GETDEVICELIST	0x04
+#define SPNFS_TYPE_GETDEVICEITER	0x04
 #define SPNFS_TYPE_GETDEVICEINFO	0x05
 #define SPNFS_TYPE_SETATTR		0x06
 #define SPNFS_TYPE_OPEN			0x07
 #define	SPNFS_TYPE_CLOSE		0x08
 #define SPNFS_TYPE_CREATE		0x09
 #define SPNFS_TYPE_REMOVE		0x0a
-#define	SPNFS_TYPE_COMMIT		0x0b
+#define SPNFS_TYPE_COMMIT		0x0b
 
-#define SPNFS_MAX_DATA_SERVERS		2
-#define SPNFS_MAX_LAYOUT		8
+#define	SPNFS_MAX_DEVICES		1
+#define	SPNFS_MAX_DATA_SERVERS		2
+#define	SPNFS_MAX_LAYOUT		8
 
 /* layout */
 struct spnfs_msg_layoutget_args {
@@ -64,9 +67,9 @@ struct spnfs_msg_layoutget_args {
 
 struct spnfs_filelayout_list {
 	u_int32_t	dev_id;
-	u_int32_t	dev_index;
-	u_int32_t	fh_len;
-	unsigned char	fh_val[128]; /* DMXXX fix this const */
+	u_int32_t       ds_index;
+	u_int32_t       fh_len;
+	unsigned char   fh_val[128]; /* DMXXX fix this const */
 };
 
 struct spnfs_msg_layoutget_res {
@@ -97,31 +100,41 @@ struct spnfs_msg_layoutreturn_res {
 };
 */
 
-/* getdevicelist */
-struct spnfs_msg_getdevicelist_args {
+/* getdeviceiter */
+struct spnfs_msg_getdeviceiter_args {
 	unsigned long inode;
+	u_int64_t cookie;
+	u_int64_t verf;
 };
 
-struct spnfs_getdevicelist_dev {
+struct spnfs_msg_getdeviceiter_res {
+	int status;
 	u_int32_t devid;
+	u_int64_t cookie;
+	u_int64_t verf;
+	u_int32_t eof;
+};
+
+/* getdeviceinfo */
+struct spnfs_data_server {
+	u_int32_t dsid;
 	char netid[5];
 	char addr[29];
 };
 
-struct spnfs_msg_getdevicelist_res {
-	int status;
-	int count;
-	struct spnfs_getdevicelist_dev dlist[SPNFS_MAX_DATA_SERVERS];
+struct spnfs_device {
+	u_int32_t devid;
+	int dscount;
+	struct spnfs_data_server dslist[SPNFS_MAX_DATA_SERVERS];
 };
 
-/* getdeviceinfo */
 struct spnfs_msg_getdeviceinfo_args {
 	u_int32_t devid;
 };
 
 struct spnfs_msg_getdeviceinfo_res {
 	int status;
-	struct spnfs_getdevicelist_dev dinfo;
+	struct spnfs_device devinfo;
 };
 
 /* setattr */
@@ -191,29 +204,41 @@ struct spnfs_msg_commit_res {
 union spnfs_msg_args {
 	struct spnfs_msg_layoutget_args		layoutget_args;
 	struct spnfs_msg_layoutcommit_args	layoutcommit_args;
-//	struct spnfs_msg_layoutreturn_args	layoutreturn_args;
-	struct spnfs_msg_getdevicelist_args	getdevicelist_args;
-	struct spnfs_msg_getdeviceinfo_args	getdeviceinfo_args;
+/*
+	struct spnfs_msg_layoutreturn_args	layoutreturn_args;
+*/
+	struct spnfs_msg_getdeviceiter_args     getdeviceiter_args;
+	struct spnfs_msg_getdeviceinfo_args     getdeviceinfo_args;
 	struct spnfs_msg_setattr_args		setattr_args;
 	struct spnfs_msg_open_args		open_args;
 	struct spnfs_msg_close_args		close_args;
-//	struct spnfs_msg_create_args		create_args;
+/*
+	struct spnfs_msg_create_args		create_args;
+*/
 	struct spnfs_msg_remove_args		remove_args;
-//	struct spnfs_msg_commit_args		commit_args;
+/*
+	struct spnfs_msg_commit_args		commit_args;
+*/
 };
 
 union spnfs_msg_res {
 	struct spnfs_msg_layoutget_res		layoutget_res;
 	struct spnfs_msg_layoutcommit_res	layoutcommit_res;
-//	struct spnfs_msg_layoutreturn_res	layoutreturn_res;
-	struct spnfs_msg_getdevicelist_res	getdevicelist_res;
-	struct spnfs_msg_getdeviceinfo_res	getdeviceinfo_res;
+/*
+	struct spnfs_msg_layoutreturn_res	layoutreturn_res;
+*/
+	struct spnfs_msg_getdeviceiter_res      getdeviceiter_res;
+	struct spnfs_msg_getdeviceinfo_res      getdeviceinfo_res;
 	struct spnfs_msg_setattr_res		setattr_res;
 	struct spnfs_msg_open_res		open_res;
 	struct spnfs_msg_close_res		close_res;
-//	struct spnfs_msg_create_res		create_res;
+/*
+	struct spnfs_msg_create_res		create_res;
+*/
 	struct spnfs_msg_remove_res		remove_res;
-//	struct spnfs_msg_commit_res		commit_res;
+/*
+	struct spnfs_msg_commit_res		commit_res;
+*/
 };
 
 /* a spnfs message, args and response */
@@ -238,16 +263,19 @@ struct spnfs {
 
 int spnfs_layout_type(void);
 int spnfs_layoutget(struct inode *, void *);
-int spnfs_layoutcomit(void);
-int spnfs_layoutreturn(void);
-int spnfs_getdevicelist(struct super_block *, void *);
-int spnfs_getdeviceinfo(void);
+int spnfs_layoutcommit(void);
+int spnfs_layoutreturn(struct inode *, void *);
+int spnfs_getdeviceiter(struct super_block *, struct pnfs_deviter_arg *);
+int spnfs_getdeviceinfo(struct super_block *, struct pnfs_devinfo_arg *);
 int spnfs_setattr(void);
 int spnfs_open(struct inode *, void *);
+int spnfs_get_state(struct inode *, void *, void *);
+int spnfs_remove(unsigned long ino);
 
 int nfsd_spnfs_new(void);
 void nfsd_spnfs_delete(void);
 int spnfs_upcall(struct spnfs *, struct spnfs_msg *, union spnfs_msg_res *);
+int spnfs_enabled(void);
 
 #endif /* __KERNEL__ */
 

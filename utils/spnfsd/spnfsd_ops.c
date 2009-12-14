@@ -36,6 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern int stripesize;
 extern int densestriping;
 extern int num_ds;
+extern int num_dev;
 extern char dsmountdir[];
 extern struct dserver dataservers[SPNFS_MAX_DATA_SERVERS];
 size_t  strlcat(char *, const char *, size_t);
@@ -58,9 +59,8 @@ spnfsd_layoutget(struct spnfs_msg *im)
 	im->im_res.layoutget_res.layout_count = num_ds;
 
 	for (ds = 0 ; ds < num_ds ; ds++) {
-		im->im_res.layoutget_res.flist[ds].dev_id =
-			dataservers[ds].ds_devid;
-		im->im_res.layoutget_res.flist[ds].dev_index = ds;
+		im->im_res.layoutget_res.flist[ds].dev_id = 1; /* XXX */
+		im->im_res.layoutget_res.flist[ds].ds_index = ds;
 		memset(im->im_res.layoutget_res.flist[ds].fh_val, 0, 128); /*DMXXX*/
 		sprintf(fullpath, "%s/%s/%ld",
 			dsmountdir, dataservers[ds].ds_ip,
@@ -112,22 +112,20 @@ spnfsd_layoutreturn(struct spnfs_msg *im)
 }
 
 int
-spnfsd_getdevicelist(struct spnfs_msg *im)
+spnfsd_getdeviceiter(struct spnfs_msg *im)
 {
-	int ds;
-
 	im->im_status = SPNFS_STATUS_SUCCESS;
-	im->im_res.getdevicelist_res.status = 0;
-	im->im_res.getdevicelist_res.count = num_ds;
-	for (ds = 0 ; ds < num_ds ; ds++) {
-		im->im_res.getdevicelist_res.dlist[ds].devid =
-			dataservers[ds].ds_devid;
-		memset(im->im_res.getdevicelist_res.dlist[ds].netid, 0, 5);
-		strlcpy(im->im_res.getdevicelist_res.dlist[ds].netid, "tcp", 4);
-		sprintf(im->im_res.getdevicelist_res.dlist[ds].addr, "%s.%d.%d",
-			dataservers[ds].ds_ip,
-			dataservers[ds].ds_port >> 8,
-			dataservers[ds].ds_port & 0xff);
+	im->im_res.getdeviceiter_res.status = 0;
+
+	/* verifier ignored for now */
+	if (im->im_args.getdeviceiter_args.cookie >= num_dev)
+		im->im_res.getdeviceiter_res.eof = 1;
+	else {
+		/* XXX just hardcoded for now...fix this */
+		im->im_res.getdeviceiter_res.devid = 1;
+		im->im_res.getdeviceiter_res.cookie = im->im_args.getdeviceiter_args.cookie + 1;
+		im->im_res.getdeviceiter_res.verf = 0;
+		im->im_res.getdeviceiter_res.eof = 0;
 	}
 
 	return 0;
@@ -136,27 +134,34 @@ spnfsd_getdevicelist(struct spnfs_msg *im)
 int
 spnfsd_getdeviceinfo(struct spnfs_msg *im)
 {
+	struct spnfs_device *devp;
+	struct spnfs_data_server *dsp;
+	u_int32_t devid;
 	int ds;
 
 	im->im_status = SPNFS_STATUS_SUCCESS;
-	im->im_res.getdeviceinfo_res.status = ENODEV;
+	im->im_res.getdeviceinfo_res.status = 0;
+
+	devid = im->im_args.getdeviceinfo_args.devid;
+
+	/* XXX fix this if/when we support multiple devices */
+	if (devid != 1) {
+		im->im_res.getdeviceinfo_res.status = ENODEV;
+		return -1;
+	}
+
+	devp = &im->im_res.getdeviceinfo_res.devinfo;
+	devp->dscount = num_ds;
+
 	for (ds = 0 ; ds < num_ds ; ds++) {
-		if (dataservers[ds].ds_devid ==
-		    im->im_args.getdeviceinfo_args.devid) {
-			im->im_res.getdeviceinfo_res.dinfo.devid =
-				dataservers[ds].ds_devid;
-			memset(im->im_res.getdeviceinfo_res.dinfo.netid,
-				0, 5);
-			strlcpy(im->im_res.getdeviceinfo_res.dinfo.netid,
-				"tcp", 4);
-			sprintf(im->im_res.getdeviceinfo_res.dinfo.addr,
-				"%s.%d.%d",
-				dataservers[ds].ds_ip,
-				dataservers[ds].ds_port >> 8,
-				dataservers[ds].ds_port & 0xff);
-			im->im_res.getdeviceinfo_res.status = 0;
-			break;
-		}
+		dsp = &devp->dslist[ds];
+		dsp->dsid = dataservers[ds].ds_id;
+		memset(dsp->netid, 0, 5);
+		strlcpy(dsp->netid, "tcp", 4);
+		sprintf(dsp->addr, "%s.%d.%d",
+			dataservers[ds].ds_ip,
+			dataservers[ds].ds_port >> 8,
+			dataservers[ds].ds_port & 0xff);
 	}
 
 	return 0;
