@@ -20,6 +20,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
 
+#define _LARGEFILE64_SOURCE
+#define _FILE_OFFSET_BITS 64
 #include "nfsd4_spnfs.h"
 #include "spnfsd.h"
 #include "nfs/nfs.h"
@@ -265,6 +267,130 @@ spnfsd_remove(struct spnfs_msg *im)
 int
 spnfsd_commit(struct spnfs_msg *im)
 {
+	im->im_status = SPNFS_STATUS_SUCCESS;
+	return 0;
+}
+
+int
+min (unsigned int x, unsigned int y)
+{
+	if (x<y) return x; else return y;
+}
+
+/* DMXXX: for read and write, there's an issue with partially completed i/o */
+int
+spnfsd_read(struct spnfs_msg *im)
+{
+	unsigned long inode = im->im_args.read_args.inode;
+	loff_t offset = im->im_args.read_args.offset;
+	unsigned long len = im->im_args.read_args.len;
+	int ds, iolen;
+	loff_t soffset;
+	int bufoffset = 0;
+	char fullpath[1024]; /* DMXXX */
+	int fd, err;
+	int completed = 0;
+
+	im->im_status = SPNFS_STATUS_SUCCESS;
+	im->im_res.read_res.status = 0;
+	if (len > SPNFS_MAX_IO) {
+		im->im_res.read_res.status = -1;
+		return 0;
+	}
+	while (len > 0) {
+		ds = (offset / stripesize) % num_ds;
+		if (densestriping == 0)
+			soffset = offset;
+		else
+			soffset = (offset / num_ds) + (offset % stripesize);
+		iolen = min(len, stripesize - (offset % stripesize));
+
+		sprintf(fullpath, "%s/%s/%ld", dsmountdir,
+			dataservers[ds].ds_ip, inode);
+		fd = open(fullpath, O_RDONLY);
+		if (fd < 0) {
+			perror(fullpath);
+			im->im_res.read_res.status = -errno;
+			return 0; /* DMXXX */
+		}
+		/* DM: add some error checking */
+		lseek64(fd, offset, SEEK_SET);
+		err = read(fd,
+			(void *)(im->im_res.read_res.data+bufoffset), iolen);
+		close(fd);
+		if (err < 0) {
+			perror("read");
+			im->im_res.read_res.status = -errno;
+			return 0; /* DMXXX */
+		}
+
+		if (err == 0)
+			break;
+		iolen = err; /* number of bytes read */
+		completed += iolen;
+		len -= iolen;
+		offset += iolen;
+		bufoffset += iolen;
+	}
+	im->im_res.read_res.status = completed;
+
+	return 0;
+}
+
+int
+spnfsd_write(struct spnfs_msg *im)
+{
+	unsigned long inode = im->im_args.write_args.inode;
+	loff_t offset = im->im_args.write_args.offset;
+	size_t len = im->im_args.write_args.len;
+	char *wbuf = im->im_args.write_args.data;
+	int ds, iolen;
+	loff_t soffset;
+	int bufoffset = 0;
+	char fullpath[1024]; /* DMXXX */
+	int fd, err;
+	int completed = 0;
+
+	im->im_status = SPNFS_STATUS_SUCCESS;
+	im->im_res.write_res.status = 0;
+	if (len > SPNFS_MAX_IO) {
+		printf("write length > SPNFS_MAX_IO\n");
+		im->im_res.write_res.status = -1;
+		return 0;
+	}
+	while (len > 0) {
+		ds = (offset / stripesize) % num_ds;
+		if (densestriping == 0)
+			soffset = offset;
+		else
+			soffset = (offset / num_ds) + (offset % stripesize);
+		iolen = min(len, stripesize - (offset % stripesize));
+
+		sprintf(fullpath, "%s/%s/%ld", dsmountdir,
+			dataservers[ds].ds_ip, inode);
+		fd = open(fullpath, O_WRONLY);
+		if (fd < 0) {
+			perror(fullpath);
+			im->im_res.write_res.status = -errno;
+			return 0; /* DMXXX */
+		}
+		/* DM: add some error checking */
+		lseek64(fd, offset, SEEK_SET);
+		err = write(fd, (void *)(wbuf+bufoffset), iolen);
+		close(fd);
+		if (err < 0) {
+			perror("write");
+			im->im_res.write_res.status = -errno;
+			return 0; /* DMXXX */
+		}
+
+		iolen = err; /* number of bytes read */
+		completed += iolen;
+		len -= iolen;
+		offset += iolen;
+		bufoffset += iolen;
+	}
+	im->im_res.write_res.status = completed;
 	return 0;
 }
 

@@ -40,6 +40,8 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define _LARGEFILE64_SOURCE
+#define _FILE_OFFSET_BITS 64
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/poll.h>
@@ -339,6 +341,12 @@ spnfs_msg_handler(struct spnfs_client *scp, struct spnfs_msg *im)
 		break;
 	case SPNFS_TYPE_COMMIT:
 		err = spnfsd_commit(im);
+		break;
+	case SPNFS_TYPE_READ:
+		err = spnfsd_read(im);
+		break;
+	case SPNFS_TYPE_WRITE:
+		err = spnfsd_write(im);
 		break;
 	default:
 		spnfsd_warnx("spnfs_msg_handler: Invalid msg type (%d) in message",

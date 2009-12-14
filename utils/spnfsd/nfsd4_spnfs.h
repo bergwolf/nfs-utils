@@ -55,9 +55,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define SPNFS_TYPE_CREATE		0x09
 #define SPNFS_TYPE_REMOVE		0x0a
 #define SPNFS_TYPE_COMMIT		0x0b
+#define SPNFS_TYPE_READ			0x0c
+#define SPNFS_TYPE_WRITE		0x0d
 
 #define	SPNFS_MAX_DEVICES		1
 #define	SPNFS_MAX_DATA_SERVERS		2
+#define SPNFS_MAX_IO			2048
 
 /* layout */
 struct spnfs_msg_layoutget_args {
@@ -198,6 +201,30 @@ struct spnfs_msg_commit_res {
 };
 */
 
+/* read */
+struct spnfs_msg_read_args {
+	unsigned long inode;
+	loff_t offset;
+	unsigned long len;
+};
+
+struct spnfs_msg_read_res {
+	int status;
+	char data[SPNFS_MAX_IO];
+};
+
+/* write */
+struct spnfs_msg_write_args {
+	unsigned long inode;
+	loff_t offset;
+	unsigned long len;
+	char data[SPNFS_MAX_IO];
+};
+
+struct spnfs_msg_write_res {
+	int status;
+};
+
 /* bundle args and responses */
 union spnfs_msg_args {
 	struct spnfs_msg_layoutget_args		layoutget_args;
@@ -217,6 +244,8 @@ union spnfs_msg_args {
 /*
 	struct spnfs_msg_commit_args		commit_args;
 */
+	struct spnfs_msg_read_args		read_args;
+	struct spnfs_msg_write_args		write_args;
 };
 
 union spnfs_msg_res {
@@ -237,6 +266,8 @@ union spnfs_msg_res {
 /*
 	struct spnfs_msg_commit_res		commit_res;
 */
+	struct spnfs_msg_read_res		read_res;
+	struct spnfs_msg_write_res		write_res;
 };
 
 /* a spnfs message, args and response */
@@ -268,7 +299,9 @@ int spnfs_getdeviceinfo(struct super_block *, struct pnfs_devinfo_arg *);
 int spnfs_setattr(void);
 int spnfs_open(struct inode *, void *);
 int spnfs_get_state(struct inode *, void *, void *);
-int spnfs_remove(unsigned long ino);
+int spnfs_remove(unsigned long);
+int spnfs_read(unsigned long, loff_t, unsigned long *, int, struct svc_rqst *);
+int spnfs_write(unsigned long, loff_t, size_t, int, struct svc_rqst *);
 
 int nfsd_spnfs_new(void);
 void nfsd_spnfs_delete(void);

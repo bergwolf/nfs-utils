@@ -65,4 +65,6 @@ int spnfsd_close(struct spnfs_msg *);
 int spnfsd_create(struct spnfs_msg *);
 int spnfsd_remove(struct spnfs_msg *);
 int spnfsd_commit(struct spnfs_msg *);
+int spnfsd_read(struct spnfs_msg *);
+int spnfsd_write(struct spnfs_msg *);
 int spnfsd_getfh(char *, unsigned char *, unsigned int *);
