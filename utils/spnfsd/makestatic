@@ -1,0 +1,1 @@
+gcc -static -Wall -pipe -g -O2 -o spnfsd atomicio.o spnfsd_ops.o cfg.o spnfsd.o strlcat.o strlcpy.o  /usr/lib/libevent.a ../../support/nfs/libnfs.a

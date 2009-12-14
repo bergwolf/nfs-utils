@@ -40,6 +40,7 @@ struct nfs_fh_old {
 #define NFSCTL_GETFH		6	/* get an fh (used by mountd) */
 #define NFSCTL_GETFD		7	/* get an fh by path (used by mountd) */
 #define NFSCTL_GETFS		8	/* get an fh by path with max size (used by mountd) */
+#define NFSCTL_FD2FH		9	/* get a fh from a fd */
 
 #define NFSCTL_UDPBIT		      (1 << (17 - 1))
 #define NFSCTL_TCPBIT		      (1 << (18 - 1))
@@ -129,6 +130,11 @@ struct nfsctl_fsparm {
 	int			gd_maxlen;
 };
 
+/* FD2FH */
+struct nfsctl_fd2fh {
+	int			fd;
+};
+
 /*
  * This is the argument union.
  */
@@ -142,6 +148,7 @@ struct nfsctl_arg {
 		struct nfsctl_fhparm	u_getfh;
 		struct nfsctl_fdparm	u_getfd;
 		struct nfsctl_fsparm	u_getfs;
+		struct nfsctl_fd2fh	u_fd2fh;
 	} u;
 #define ca_svc		u.u_svc
 #define ca_client	u.u_client
@@ -150,6 +157,7 @@ struct nfsctl_arg {
 #define ca_getfh	u.u_getfh
 #define ca_getfd	u.u_getfd
 #define ca_getfs	u.u_getfs
+#define ca_fd2fh	u.u_fd2fh
 #define ca_authd	u.u_authd
 };
 

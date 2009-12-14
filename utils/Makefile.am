@@ -11,6 +11,7 @@ endif
 
 if CONFIG_NFSV41
 OPTDIRS += blkmapd
+OPTDIRS += spnfsd
 endif
 
 if CONFIG_GSS
