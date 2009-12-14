@@ -189,6 +189,10 @@ spnfsd_open(struct spnfs_msg *im)
 			im->im_res.open_res.status = errno;
 			break;
 		} else {
+			if (fchmod(fd, 0777) != 0) {
+				/* DM: we'll consider this non-fatal for now */
+				perror("chmod stripe");
+			}
 			im->im_res.open_res.status = 0;
 			close(fd);
 		}
