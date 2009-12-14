@@ -63,9 +63,10 @@ spnfsd_layoutget(struct spnfs_msg *im)
 
 	for (ds = 0 ; ds < num_ds ; ds++) {
 		memset(im->im_res.layoutget_res.flist[ds].fh_val, 0, 128); /*DMXXX*/
-		sprintf(fullpath, "%s/%s/%ld",
+		sprintf(fullpath, "%s/%s/%lu.%lu",
 			dsmountdir, dataservers[ds].ds_ip,
-		        im->im_args.layoutget_args.inode);
+		        im->im_args.layoutget_args.inode,
+		        im->im_args.layoutget_args.generation);
 		rc = spnfsd_getfh(fullpath,
 				  im->im_res.layoutget_res.flist[ds].fh_val,
 				  &im->im_res.layoutget_res.flist[ds].fh_len);
@@ -95,7 +96,8 @@ spnfsd_layoutcommit(struct spnfs_msg *im)
 
 	im->im_status = SPNFS_STATUS_SUCCESS;
 	im->im_res.layoutcommit_res.status = 0;
-	sprintf(basename, "%ld", im->im_args.layoutcommit_args.inode);
+	sprintf(basename, "%lu.%lu", im->im_args.layoutcommit_args.inode,
+				im->im_args.layoutcommit_args.generation);
 
 	for (ds = 0 ; ds < num_ds ; ds++) {
 		sprintf(fullpath, "%s/%s/%s", dsmountdir,
@@ -177,7 +179,8 @@ spnfsd_setattr(struct spnfs_msg *im)
 
 	im->im_status = SPNFS_STATUS_SUCCESS;
 	im->im_res.setattr_res.status = 0;
-	sprintf(basename, "%ld", im->im_args.setattr_args.inode);
+	sprintf(basename, "%lu.%lu", im->im_args.setattr_args.inode,
+				im->im_args.setattr_args.generation);
 
 	for (ds = 0 ; ds < num_ds ; ds++) {
 		sprintf(fullpath, "%s/%s/%s", dsmountdir,
@@ -200,7 +203,8 @@ spnfsd_open(struct spnfs_msg *im)
 
 	im->im_status = SPNFS_STATUS_SUCCESS;
 	im->im_res.open_res.status = 0;
-	sprintf(basename, "%ld", im->im_args.open_args.inode);
+	sprintf(basename, "%lu.%lu", im->im_args.open_args.inode,
+				im->im_args.open_args.generation);
 
 	for (ds = 0 ; ds < num_ds ; ds++) {
 		sprintf(dirpath, "%s/%s", dsmountdir,
@@ -253,7 +257,8 @@ spnfsd_remove(struct spnfs_msg *im)
 
 	im->im_status = SPNFS_STATUS_SUCCESS;
 	im->im_res.remove_res.status = 0;
-	sprintf(basename, "%ld", im->im_args.remove_args.inode);
+	sprintf(basename, "%lu.%lu", im->im_args.remove_args.inode,
+				im->im_args.remove_args.generation);
 
 	for (ds = 0 ; ds < num_ds ; ds++) {
 		sprintf(fullpath, "%s/%s/%s", dsmountdir,
@@ -282,6 +287,7 @@ int
 spnfsd_read(struct spnfs_msg *im)
 {
 	unsigned long inode = im->im_args.read_args.inode;
+	unsigned long generation = im->im_args.read_args.generation;
 	loff_t offset = im->im_args.read_args.offset;
 	unsigned long len = im->im_args.read_args.len;
 	int ds, iolen;
@@ -305,8 +311,8 @@ spnfsd_read(struct spnfs_msg *im)
 			soffset = (offset / num_ds) + (offset % stripesize);
 		iolen = min(len, stripesize - (offset % stripesize));
 
-		sprintf(fullpath, "%s/%s/%ld", dsmountdir,
-			dataservers[ds].ds_ip, inode);
+		sprintf(fullpath, "%s/%s/%lu.%lu", dsmountdir,
+			dataservers[ds].ds_ip, inode, generation);
 		fd = open(fullpath, O_RDONLY);
 		if (fd < 0) {
 			perror(fullpath);
@@ -341,6 +347,7 @@ int
 spnfsd_write(struct spnfs_msg *im)
 {
 	unsigned long inode = im->im_args.write_args.inode;
+	unsigned long generation = im->im_args.write_args.generation;
 	loff_t offset = im->im_args.write_args.offset;
 	size_t len = im->im_args.write_args.len;
 	char *wbuf = im->im_args.write_args.data;
@@ -366,8 +373,8 @@ spnfsd_write(struct spnfs_msg *im)
 			soffset = (offset / num_ds) + (offset % stripesize);
 		iolen = min(len, stripesize - (offset % stripesize));
 
-		sprintf(fullpath, "%s/%s/%ld", dsmountdir,
-			dataservers[ds].ds_ip, inode);
+		sprintf(fullpath, "%s/%s/%lu.%lu", dsmountdir,
+			dataservers[ds].ds_ip, inode, generation);
 		fd = open(fullpath, O_WRONLY);
 		if (fd < 0) {
 			perror(fullpath);
