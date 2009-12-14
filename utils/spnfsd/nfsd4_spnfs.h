@@ -71,7 +71,7 @@ struct spnfs_filelayout_list {
 
 struct spnfs_msg_layoutget_res {
 	int status;
-	u_int32_t dev_id;
+	u_int64_t devid;
 	u_int64_t stripe_size;
 	u_int32_t stripe_type;
 	u_int32_t stripe_count;
@@ -107,7 +107,7 @@ struct spnfs_msg_getdeviceiter_args {
 
 struct spnfs_msg_getdeviceiter_res {
 	int status;
-	u_int32_t devid;
+	u_int64_t devid;
 	u_int64_t cookie;
 	u_int64_t verf;
 	u_int32_t eof;
@@ -121,13 +121,13 @@ struct spnfs_data_server {
 };
 
 struct spnfs_device {
-	u_int32_t devid;
+	u_int64_t devid;
 	int dscount;
 	struct spnfs_data_server dslist[SPNFS_MAX_DATA_SERVERS];
 };
 
 struct spnfs_msg_getdeviceinfo_args {
-	u_int32_t devid;
+	u_int64_t devid;
 };
 
 struct spnfs_msg_getdeviceinfo_res {

@@ -39,9 +39,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 struct dserver {
-        char    *ds_ip;
-        int     ds_port;
-        char    *ds_path;
+        char	*ds_ip;
+        int	ds_port;
+        char	*ds_path;
 	int	ds_id;
 };
 

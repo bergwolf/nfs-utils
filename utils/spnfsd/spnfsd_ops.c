@@ -51,7 +51,7 @@ spnfsd_layoutget(struct spnfs_msg *im)
 
 	im->im_status = SPNFS_STATUS_SUCCESS;
 	im->im_res.layoutget_res.status = 0;
-	im->im_res.layoutget_res.dev_id = 1; /* XXX */
+	im->im_res.layoutget_res.devid = 1; /* XXX */
 	im->im_res.layoutget_res.stripe_size = stripesize;
 	if (densestriping)
 		im->im_res.layoutget_res.stripe_type = 1; /* DMXXX enum */
@@ -145,7 +145,7 @@ spnfsd_getdeviceinfo(struct spnfs_msg *im)
 
 	/* XXX fix this if/when we support multiple devices */
 	if (devid != 1) {
-		im->im_res.getdeviceinfo_res.status = ENODEV;
+		im->im_res.getdeviceinfo_res.status = -ENOENT;
 		return -1;
 	}
 
