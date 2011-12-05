@@ -31,6 +31,7 @@
 #include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <sys/select.h>
+#include <sys/inotify.h>
 #include <linux/kdev_t.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_ioctl.h>
@@ -50,10 +51,15 @@
 
 #include "device-discovery.h"
 
+#define EVENT_SIZE (sizeof(struct inotify_event))
+#define EVENT_BUFSIZE (1024 * EVENT_SIZE)
+
 #define BL_PIPE_FILE	"/var/lib/nfs/rpc_pipefs/nfs/blocklayout"
+#define NFSPIPE_DIR	"/var/lib/nfs/rpc_pipefs/nfs"
 #define PID_FILE	"/var/run/blkmapd.pid"
 
 struct bl_disk *visible_disk_list;
+int		bl_watch_fd, bl_pipe_fd, nfs_pipedir_wfd;
 
 struct bl_disk_path *bl_get_path(const char *filepath,
 				 struct bl_disk_path *paths)
@@ -338,23 +344,50 @@ int bl_disk_inquiry_process(int fd)
 	return ret;
 }
 
-/* TODO: set bl_process_stop to 1 in command */
-unsigned int bl_process_stop;
+void bl_nfspipe_cb(void)
+{
+	int rc, curr_byte = 0;
+	char eventArr[EVENT_BUFSIZE];
+	struct inotify_event *event;
 
-int bl_run_disk_inquiry_process(int fd)
+	rc = read(bl_watch_fd, &eventArr, EVENT_BUFSIZE);
+	if (rc < 0)
+		BL_LOG_ERR("read event fail: %s", strerror(errno));
+
+	while (rc > curr_byte) {
+		event = (struct inotify_event *)&eventArr[curr_byte];
+		curr_byte += EVENT_SIZE + event->len;
+		if (strncmp(event->name, "blocklayout", 11))
+			continue;
+
+		if (event->mask & IN_CREATE) {
+			BL_LOG_WARNING("blocklayout pipe file created\n");
+			bl_pipe_fd = open(BL_PIPE_FILE, O_RDWR);
+			if (bl_pipe_fd < 0) {
+				BL_LOG_ERR("open %s failed: %s\n",
+						event->name, strerror(errno));
+				break;
+			}
+		} else if (event->mask & IN_DELETE) {
+			BL_LOG_WARNING("blocklayout pipe file deleted\n");
+			close(bl_pipe_fd);
+			bl_pipe_fd = -1;
+		}
+	}
+}
+
+int bl_event_helper(void)
 {
 	fd_set rset;
-	int ret;
-
-	bl_process_stop = 0;
+	int ret = 0, maxfd;
 
 	for (;;) {
-		if (bl_process_stop)
-			return 1;
 		FD_ZERO(&rset);
-		FD_SET(fd, &rset);
-		ret = 0;
-		switch (select(fd + 1, &rset, NULL, NULL, NULL)) {
+		FD_SET(bl_watch_fd, &rset);
+		if (bl_pipe_fd > 0)
+			FD_SET(bl_pipe_fd, &rset);
+		maxfd = (bl_watch_fd>bl_pipe_fd)?bl_watch_fd:bl_pipe_fd;
+		switch (select(maxfd + 1, &rset, NULL, NULL, NULL)) {
 		case -1:
 			if (errno == EINTR)
 				continue;
@@ -365,8 +398,12 @@ int bl_run_disk_inquiry_process(int fd)
 		case 0:
 			goto out;
 		default:
-			if (FD_ISSET(fd, &rset))
-				ret = bl_disk_inquiry_process(fd);
+			if (FD_ISSET(bl_watch_fd, &rset))
+				bl_nfspipe_cb();
+			if (bl_pipe_fd > 0 && FD_ISSET(bl_pipe_fd, &rset))
+				ret = bl_disk_inquiry_process(bl_pipe_fd);
+			if (ret)
+				goto out;
 		}
 	}
  out:
@@ -376,7 +413,7 @@ int bl_run_disk_inquiry_process(int fd)
 /* Daemon */
 int main(int argc, char **argv)
 {
-	int fd, pidfd = -1, opt, dflag = 0, fg = 0, ret = 1;
+	int pidfd = -1, opt, dflag = 0, fg = 0, ret = 1;
 	struct stat statbuf;
 	char pidbuf[64];
 
@@ -426,18 +463,27 @@ int main(int argc, char **argv)
 		exit(0);
 	}
 
-	/* open pipe file */
-	fd = open(BL_PIPE_FILE, O_RDWR);
-	if (fd < 0) {
-		BL_LOG_ERR("open pipe file %s error\n", BL_PIPE_FILE);
+	if ((bl_watch_fd = inotify_init()) < 0) {
+		BL_LOG_ERR("init inotify failed %s\n", strerror(errno));
 		exit(1);
 	}
+
+	/* open pipe file */
+	nfs_pipedir_wfd = inotify_add_watch(bl_watch_fd, NFSPIPE_DIR, IN_CREATE|IN_DELETE);
+	if (nfs_pipedir_wfd < 0) {
+		BL_LOG_ERR("fail to watch %s: %s\n", NFSPIPE_DIR, strerror(errno));
+		exit(1);
+	}
+
+	bl_pipe_fd = open(BL_PIPE_FILE, O_RDWR);
+	if (bl_pipe_fd < 0)
+		BL_LOG_ERR("open pipe file %s failed: %s\n", BL_PIPE_FILE, strerror(errno));
 
 	while (1) {
 		/* discover device when needed */
 		bl_discover_devices();
 
-		ret = bl_run_disk_inquiry_process(fd);
+		ret = bl_event_helper();
 		if (ret < 0) {
 			/* what should we do with process error? */
 			BL_LOG_ERR("inquiry process return %d\n", ret);
