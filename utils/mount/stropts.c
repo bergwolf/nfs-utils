@@ -35,6 +35,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+/* TODO VSOCK */
+#include <linux/vm_sockets.h>
+
 #include "sockaddr.h"
 #include "xcommon.h"
 #include "mount.h"
@@ -388,10 +391,30 @@ static int nfs_validate_options(struct nfsmount_info *mi)
 
 	if (!nfs_nfs_proto_family(mi->options, &family))
 		return 0;
+	fprintf(stderr, "%s family %d\n", __func__, family);
 
 	hint.ai_family = (int)family;
 	error = getaddrinfo(mi->hostname, NULL, &hint, &mi->address);
-	if (error != 0) {
+	if (family == AF_VSOCK && error == EAI_FAMILY) {
+		/* TODO add support to glibc? */
+		struct sockaddr_vm *svm;
+		struct addrinfo *addrinfo = xmalloc(sizeof(struct addrinfo) +
+						    sizeof(struct sockaddr_vm));
+
+		memset(addrinfo, 0, sizeof(*addrinfo));
+		addrinfo->ai_family = AF_VSOCK;
+		addrinfo->ai_socktype = SOCK_STREAM;
+		addrinfo->ai_addrlen = sizeof(struct sockaddr_vm);
+		addrinfo->ai_addr = (void *)(addrinfo + 1);
+		addrinfo->ai_canonname = xstrdup(mi->hostname);
+
+		svm = (struct sockaddr_vm *)addrinfo->ai_addr;
+		memset(svm, 0, sizeof(*svm));
+		svm->svm_family = AF_VSOCK;
+		svm->svm_cid = atoi(mi->hostname);
+
+		mi->address = addrinfo;
+	} else if (error != 0) {
 		nfs_error(_("%s: Failed to resolve server %s: %s"),
 			progname, mi->hostname, gai_strerror(error));
 		mi->address = NULL;

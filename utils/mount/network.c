@@ -43,6 +43,8 @@
 #include <rpc/pmap_prot.h>
 #include <rpc/pmap_clnt.h>
 
+#include <linux/vm_sockets.h>
+
 #include "sockaddr.h"
 #include "xcommon.h"
 #include "mount.h"
@@ -322,6 +324,13 @@ int nfs_string_to_sockaddr(const char *address, struct sockaddr *sap,
 int nfs_present_sockaddr(const struct sockaddr *sap, const socklen_t salen,
 			 char *buf, const size_t buflen)
 {
+	if (sap->sa_family == AF_VSOCK) {
+		snprintf(buf, buflen, "vsock:%u",
+			 ((struct sockaddr_vm *)sap)->svm_cid);
+		fprintf(stderr, "%s vsock addr \"%s\"\n", __func__, buf);
+		return 1;
+	}
+
 #ifdef HAVE_GETNAMEINFO
 	int result;
 
@@ -1392,7 +1401,7 @@ sa_family_t	config_default_family = AF_INET;
 static int
 nfs_verify_family(sa_family_t family)
 {
-	if (family != AF_INET)
+	if (family != AF_INET && family != AF_VSOCK)
 		return 0;
 
 	return 1;
